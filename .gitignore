@@ -1,1 +1,4 @@
+# don't commit the large SDK
 sdk
+# the executable
+/zwostream
