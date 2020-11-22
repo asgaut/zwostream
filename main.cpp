@@ -125,11 +125,15 @@ int  main()
 			ctrlcap.IsAutoSupported?"(Auto supported)":"(Manual only)");
 	}
 
-	long exp = 66*1000; // 15 fps
-	long gain = 4;
+	int fDropCount;
+	unsigned long fpsCount = 0, fCount = 0;
+	long exp = 250*1000;
+	long gain = 50;
 	long sensorTemp;
+
 	ASISetControlValue(CamInfo.CameraID, ASI_EXPOSURE, exp, ASI_FALSE);
 	ASISetControlValue(CamInfo.CameraID, ASI_GAIN, gain, ASI_TRUE);
+	ASISetControlValue(CamInfo.CameraID, ASI_AUTO_MAX_GAIN, 80, ASI_TRUE);
 	//ASISetControlValue(CamInfo.CameraID, ASI_BANDWIDTHOVERLOAD, 60, ASI_FALSE); // transfer speed percentage
 	//ASISetControlValue(CamInfo.CameraID, ASI_HIGH_SPEED_MODE, 0, ASI_FALSE);
 	//ASISetControlValue(CamInfo.CameraID, ASI_WB_B, 90, ASI_FALSE);
@@ -150,26 +154,21 @@ int  main()
 		exit_mainloop = true;
 	}
 
-	int fDropCount;
-	unsigned long fpsCount = 0, fCount = 0;
-	cv::Mat img(CamInfo.MaxHeight, CamInfo.MaxWidth, CV_8UC1);
-	unsigned int time1, time2;
-
-	// RAW16 does not seem to work with USB2 on RPi3 (causes too long exposure times?)
+	// RAW16 does not seem to work with USB2 on RPi3 (causes too long transfer times?)
 	// ASI_IMG_RAW8: use ffmpeg -pixel_format gray8
 	// ASI_IMG_RAW16: use ffmpeg -pixel_format gray12le
 	// Common (pipe from stdin): ffmpeg -f rawvideo -vcodec rawvideo -video_size 1280x960 -i pipe:0
 	ASI_IMG_TYPE Image_type = ASI_IMG_RAW8;
 	ASISetROIFormat(CamInfo.CameraID, CamInfo.MaxWidth, CamInfo.MaxHeight, 1, Image_type);
+	cv::Mat img(CamInfo.MaxHeight, CamInfo.MaxWidth, CV_8UC1);
 
 	ASIStartVideoCapture(CamInfo.CameraID);
-	time1 = 0;
 	while (!exit_mainloop)
 	{
 		ASI_ERROR_CODE code;
 		ASI_BOOL bVal;
 
-		code = ASIGetVideoData(CamInfo.CameraID, img.data, img.elemSize()*img.size().area(), 500);
+		code = ASIGetVideoData(CamInfo.CameraID, img.data, img.elemSize()*img.size().area(), 2000);
 		if (code != ASI_SUCCESS) {
 			fprintf(stderr, "ASIGetVideoData() error: %d\n", code);
 			exit(EXIT_FAILURE);
@@ -180,11 +179,14 @@ int  main()
 		ASIGetControlValue(CamInfo.CameraID, ASI_EXPOSURE, &exp, &bVal);
 		ASIGetControlValue(CamInfo.CameraID, ASI_TEMPERATURE, &sensorTemp, &bVal);
 		ASIGetDroppedFrames(CamInfo.CameraID, &fDropCount);
-		time2 = get_highres_time();
-		double fps = time2-time1 != 0 ? 1000.0 / (time2-time1) : 0;
-		time1 = time2;
-		imgPrintf(img, "Gain:%ld Exp:%ldms FPS:%.1f Frame:%lu Dropped:%u Temp:%.0fC",
-			gain, exp/1000, fps, fCount, fDropCount, sensorTemp/10.0);
+
+		char timestamp[20] = {0};
+		struct tm *tmp;
+		time_t t = time(NULL);
+		tmp = gmtime(&t);
+		strftime(timestamp, sizeof(timestamp), "%Y%m%d %H%M%SZ", tmp);
+		imgPrintf(img, "%s Gain:%ld Exp:%ldms Frame:%lu Dropped:%u Temp:%.0fC",
+			timestamp, gain, exp/1000, fCount, fDropCount, sensorTemp/10.0);
 		fwrite(img.data, img.elemSize(), img.size().area(), stdout);
 		fflush(stdout);
 	}
