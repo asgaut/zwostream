@@ -30,6 +30,9 @@ CFLAGS += -L./sdk/lib/$(platform) -I./sdk/include -pedantic -Wall -Werror -lopen
 zwostream: main.cpp Makefile
 	$(CC) main.cpp -o zwostream $(CFLAGS) -lASICamera2 -Wl,-rpath=. -Wl,-rpath=./sdk/lib/$(platform)
 
+copy_lib:
+	cp ./sdk/lib/$(platform)/libASICamera2.so .
+
 clean:
 	rm -f zwostream
 
