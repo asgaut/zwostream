@@ -25,7 +25,7 @@ CFLAGS += -m64
 CFLAGS += -lrt
 endif
 
-CFLAGS += -L./sdk/lib/$(platform) -I./sdk/include -pedantic -Wall -Werror -lopencv_core -lopencv_highgui -lopencv_imgproc
+CFLAGS += -L./sdk/lib/$(platform) -I./sdk/include -pedantic -Wimplicit-fallthrough -Wall -Werror -lopencv_core -lopencv_highgui -lopencv_imgproc
 
 zwostream: main.cpp Makefile
 	$(CC) main.cpp -o zwostream $(CFLAGS) -lASICamera2 -Wl,-rpath=. -Wl,-rpath=./sdk/lib/$(platform)
